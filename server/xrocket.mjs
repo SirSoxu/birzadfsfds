@@ -25,7 +25,7 @@ async function call(path, { method = "GET", body } = {}) {
 }
 
 export async function createRocketInvoice({
-  amountRub,
+  amountUsd,
   paymentId,
   description,
   telegramId,
@@ -34,8 +34,8 @@ export async function createRocketInvoice({
   const invoice = await call("/invoices", {
     method: "POST",
     body: {
-      priceAmount: amountRub.toFixed(2),
-      priceCurrency: "RUB",
+      priceAmount: amountUsd.toFixed(2),
+      priceCurrency: "USD",
       payoutCurrency: "USDT",
       clientInvoiceId: paymentId,
       description,

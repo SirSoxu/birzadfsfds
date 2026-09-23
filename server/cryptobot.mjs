@@ -24,11 +24,11 @@ async function call(method, body) {
   return payload.result;
 }
 
-export async function createCryptoInvoice({ amountRub, payload, description }) {
+export async function createCryptoInvoice({ amountUsd, payload, description }) {
   const invoice = await call("createInvoice", {
     currency_type: "fiat",
-    fiat: "RUB",
-    amount: amountRub.toFixed(2),
+    fiat: "USD",
+    amount: amountUsd.toFixed(2),
     accepted_assets: "USDT,TON",
     description,
     payload,
@@ -59,13 +59,13 @@ export async function usdtRate() {
   try {
     const rates = await call("getExchangeRates");
     const row = rates.find(
-      (item) => item.source === "USDT" && item.target === "RUB" && item.is_valid,
+      (item) => item.source === "USDT" && item.target === "USD" && item.is_valid,
     );
     if (row) return Number(row.rate);
   } catch {
     // fallback below
   }
-  return config.usdtRub;
+  return 1;
 }
 
 export function verifyCryptoWebhook(rawBody, signature) {

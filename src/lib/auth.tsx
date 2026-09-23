@@ -16,8 +16,9 @@ type AuthValue = {
   settings: Settings | null;
   loading: boolean;
   error: string;
+  unread: number;
   refresh: () => Promise<void>;
-  loginDemo: (role?: User["role"]) => Promise<void>;
+  loginDemo: (person?: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -28,6 +29,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [unread, setUnread] = useState(0);
+
   const apply = useCallback((payload: { token: string; user: User; settings?: Settings }) => {
     setToken(payload.token);
     setUser(payload.user);
@@ -36,16 +39,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     if (!getToken()) return;
-    const payload = await api<{ user: User; settings: Settings }>("/api/me");
+    const payload = await api<{ user: User; settings: Settings; unread?: number }>("/api/me");
     setUser(payload.user);
     setSettings(payload.settings);
+    setUnread(payload.unread ?? 0);
   }, []);
 
   const loginDemo = useCallback(
-    async (role: User["role"] = "user") => {
+    async (person = "alex") => {
       const payload = await api<{ token: string; user: User }>("/api/auth/demo", {
         method: "POST",
-        body: { role },
+        body: { person },
       });
       apply(payload);
       await refresh();
@@ -68,12 +72,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else if (getToken()) {
           await refresh();
         } else {
-          await loginDemo("user");
+          await loginDemo("alex");
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Не удалось войти");
         try {
-          await loginDemo("user");
+          await loginDemo("alex");
           setError("");
         } catch {
           // keep error
@@ -85,8 +89,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [apply, loginDemo, refresh]);
 
   const value = useMemo(
-    () => ({ user, settings, loading, error, refresh, loginDemo }),
-    [user, settings, loading, error, refresh, loginDemo],
+    () => ({ user, settings, loading, error, unread, refresh, loginDemo }),
+    [user, settings, loading, error, unread, refresh, loginDemo],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

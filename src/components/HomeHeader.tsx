@@ -1,10 +1,12 @@
 import { Bell, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../lib/auth";
 import { formatMoney } from "../lib/format";
 import type { User } from "../types";
 import { Avatar } from "./ui";
 
 export function HomeHeader({ user }: { user: User }) {
+  const { unread } = useAuth();
   return (
     <div className="flex items-center gap-3">
       <Avatar name={user.name} hue={user.avatarHue} photoUrl={user.photoUrl} size={48} />
@@ -22,13 +24,18 @@ export function HomeHeader({ user }: { user: User }) {
           <Plus className="size-3" />
         </span>
       </Link>
-      <button
-        type="button"
-        className="grid size-10 place-items-center rounded-full bg-panel text-mute"
+      <Link
+        to="/notifications"
+        className="relative grid size-10 place-items-center rounded-full bg-panel text-mute"
         aria-label="Уведомления"
       >
         <Bell className="size-4" />
-      </button>
+        {unread > 0 ? (
+          <span className="absolute right-1 top-1 grid min-w-4 place-items-center rounded-full bg-danger px-1 text-[10px] font-bold text-night">
+            {unread > 9 ? "9+" : unread}
+          </span>
+        ) : null}
+      </Link>
     </div>
   );
 }

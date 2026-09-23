@@ -1,17 +1,17 @@
 import { Link } from "react-router-dom";
 import { Avatar } from "../components/ui";
-import { formatMoney } from "../lib/format";
+import { formatDate, formatMoney, formatRating } from "../lib/format";
 import { useAuth } from "../lib/auth";
-import type { Role } from "../types";
 
-const ROLES: { id: Role; label: string }[] = [
-  { id: "user", label: "Пользователь" },
+const PEOPLE = [
+  { id: "alex", label: "Алексей" },
+  { id: "mira", label: "Мира" },
   { id: "moderator", label: "Модератор" },
   { id: "owner", label: "Владелец" },
 ];
 
 export function ProfilePage() {
-  const { user, loginDemo } = useAuth();
+  const { user, loginDemo, settings } = useAuth();
   if (!user) return null;
 
   return (
@@ -22,18 +22,40 @@ export function ProfilePage() {
         <span className="mt-2 inline-flex rounded-full bg-panel px-3 py-1 text-sm text-mute">
           {user.role === "owner" ? "Владелец" : user.role === "moderator" ? "Модератор" : "Обычный"}
         </span>
+        {user.plan ? (
+          <p className="mt-2 text-sm text-mute">
+            Статус «{user.plan.name}»
+            {user.plan.expired
+              ? " истёк"
+              : user.plan.until
+                ? ` до ${formatDate(user.plan.until)}`
+                : ""}
+            {` · ${user.plan.activeCount ?? 0}/${user.plan.maxActive} объявлений`}
+          </p>
+        ) : user.role === "user" ? (
+          <p className="mt-2 text-sm text-mute">Нет статуса продавца</p>
+        ) : null}
       </div>
-      <p className="text-sm text-mute">
-        Баланс: {formatMoney(user.balance)} · ★ {user.rating.toFixed(1)} · ♥ {user.likes ?? 0}
-      </p>
+      <Link
+        to={`/user/${user.id}/reviews`}
+        className="rounded-2xl bg-panel px-4 py-2 text-sm text-mute"
+      >
+        Баланс: {formatMoney(user.balance)} · ★ {formatRating(user)} · ♥ {user.likes ?? 0}
+      </Link>
       <div className="grid w-full grid-cols-3 gap-2">
         <Stat value="—" label="Объявлений" />
         <Stat value={String(user.deals)} label="Сделок" />
-        <Stat value={String(user.likes ?? 0)} label="Лайков" />
+        <Stat value={formatRating(user)} label="Рейтинг" />
       </div>
       <div className="flex w-full flex-col gap-2">
         <Link to="/search?mine=1" className="rounded-2xl bg-panel py-3 font-medium">
           Мои объявления
+        </Link>
+        <Link to="/plans" className="rounded-2xl bg-panel py-3 font-medium">
+          Статус продавца
+        </Link>
+        <Link to="/deals" className="rounded-2xl bg-panel py-3 font-medium">
+          Мои сделки
         </Link>
         <Link to="/wallet" className="rounded-2xl bg-panel py-3 font-medium">
           Баланс и выплаты
@@ -49,21 +71,29 @@ export function ProfilePage() {
           </Link>
         ) : null}
       </div>
-      <div className="flex w-full gap-2">
-        {ROLES.map((role) => (
-          <button
-            key={role.id}
-            type="button"
-            onClick={() => loginDemo(role.id)}
-            className={`flex-1 rounded-2xl py-3 text-xs font-semibold ${
-              user.role === role.id ? "bg-signal text-night" : "bg-panel"
-            }`}
-          >
-            {role.label}
-          </button>
-        ))}
-      </div>
-      <p className="text-xs text-mute">Демо-роли работают в браузере. В Telegram роль задаётся по ID.</p>
+      {settings?.demoAuth !== false ? (
+        <>
+          <p className="text-xs text-mute">Войти как другой человек (демо в браузере)</p>
+          <div className="grid w-full grid-cols-2 gap-2">
+            {PEOPLE.map((person) => (
+              <button
+                key={person.id}
+                type="button"
+                onClick={() => loginDemo(person.id)}
+                className={`rounded-2xl py-3 text-xs font-semibold ${
+                  user.username === person.id ||
+                  (person.id === "owner" && user.role === "owner") ||
+                  (person.id === "moderator" && user.role === "moderator" && user.username === "moderator")
+                    ? "bg-signal text-night"
+                    : "bg-panel"
+                }`}
+              >
+                {person.label}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

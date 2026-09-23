@@ -102,16 +102,22 @@ export function Field({
 export const inputClass =
   "min-h-11 w-full rounded-xl border border-line bg-navy px-3 text-ice placeholder:text-mute/70 transition duration-150 hover:border-line-strong focus:border-signal";
 
-export function StatusBadge({ status }: { status: "pending" | "approved" | "rejected" }) {
+export function StatusBadge({
+  status,
+}: {
+  status: "pending" | "approved" | "rejected" | "unpublished";
+}) {
   const map = {
     pending: "bg-warn/15 text-warn border-warn/25",
     approved: "bg-ok/15 text-ok border-ok/25",
     rejected: "bg-danger/15 text-danger border-danger/25",
+    unpublished: "bg-mute/15 text-mute border-line",
   };
   const label = {
     pending: "На проверке",
     approved: "Опубликовано",
     rejected: "Отклонено",
+    unpublished: "Снято с публикации",
   };
 
   return (

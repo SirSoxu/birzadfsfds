@@ -5,7 +5,7 @@ import { Button, Field, inputClass } from "../components/ui";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { SECTION_ICONS, type SectionIconName } from "../lib/format";
-import type { Section, Settings } from "../types";
+import type { ListingPlan, Section, Settings } from "../types";
 
 export function OwnerPage() {
   const { user, settings, refresh } = useAuth();
@@ -14,10 +14,12 @@ export function OwnerPage() {
     <div className="flex flex-col gap-5">
       <div>
         <h1 className="text-2xl font-semibold">Кабинет владельца</h1>
-        <p className="text-sm text-mute">Разделы, баннер и комиссии на CryptoBot / xRocket.</p>
+        <p className="text-sm text-mute">Разделы, статусы продавца, баннер и комиссии.</p>
       </div>
       {settings ? <BannerForm settings={settings} onSaved={refresh} /> : null}
       {settings ? <CommissionForm settings={settings} onSaved={refresh} /> : null}
+      {settings ? <ChatLockForm settings={settings} onSaved={refresh} /> : null}
+      <PlansForm />
       <SectionsForm />
     </div>
   );
@@ -90,6 +92,158 @@ function CommissionForm({ settings, onSaved }: { settings: Settings; onSaved: ()
         </Field>
       </div>
       <Button type="submit">Сохранить комиссии</Button>
+    </form>
+  );
+}
+
+function ChatLockForm({ settings, onSaved }: { settings: Settings; onSaved: () => Promise<void> }) {
+  async function toggle() {
+    await api("/api/settings", { method: "POST", body: { chatLocked: !settings.chatLocked } });
+    await onSaved();
+  }
+
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl bg-panel p-4">
+      <h2 className="font-semibold">Общий чат</h2>
+      <p className="text-sm text-mute">
+        {settings.chatLocked
+          ? "Сейчас писать могут только модераторы и владелец."
+          : "Чат открыт для всех."}
+      </p>
+      <Button variant="ghost" onClick={toggle}>
+        {settings.chatLocked ? "Включить чат" : "Отключить чат"}
+      </Button>
+    </div>
+  );
+}
+
+function PlansForm() {
+  const [plans, setPlans] = useState<ListingPlan[]>([]);
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("5");
+  const [durationDays, setDurationDays] = useState("30");
+  const [maxActive, setMaxActive] = useState("3");
+  const [error, setError] = useState("");
+
+  async function load() {
+    const payload = await api<{ plans: ListingPlan[] }>("/api/plans");
+    setPlans(payload.plans);
+  }
+
+  useEffect(() => {
+    load().catch(() => undefined);
+  }, []);
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    setError("");
+    try {
+      await api("/api/plans", {
+        method: "POST",
+        body: {
+          name,
+          price: Number(price.replace(",", ".")),
+          durationDays: Number(durationDays),
+          maxActive: Number(maxActive),
+        },
+      });
+      setName("");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Не удалось создать статус");
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-3 rounded-2xl bg-panel p-4">
+      <h2 className="font-semibold">Статусы продавца</h2>
+      <p className="text-sm text-mute">
+        Цена, срок и сколько объявлений можно держать на витрине. Редактировать может только владелец.
+      </p>
+      <form onSubmit={onSubmit} className="flex flex-col gap-3">
+        <Field label="Название">
+          <input className={inputClass} value={name} onChange={(event) => setName(event.target.value)} />
+        </Field>
+        <div className="grid grid-cols-3 gap-3">
+          <Field label="Цена, $">
+            <input className={inputClass} value={price} onChange={(event) => setPrice(event.target.value)} />
+          </Field>
+          <Field label="Дней">
+            <input
+              className={inputClass}
+              value={durationDays}
+              onChange={(event) => setDurationDays(event.target.value)}
+            />
+          </Field>
+          <Field label="Лимит">
+            <input className={inputClass} value={maxActive} onChange={(event) => setMaxActive(event.target.value)} />
+          </Field>
+        </div>
+        {error ? <p className="text-sm text-danger">{error}</p> : null}
+        <Button type="submit">Добавить статус</Button>
+      </form>
+      {plans.map((plan) => (
+        <PlanEditor key={plan.id} plan={plan} onSaved={load} />
+      ))}
+    </section>
+  );
+}
+
+function PlanEditor({ plan, onSaved }: { plan: ListingPlan; onSaved: () => Promise<void> }) {
+  const [name, setName] = useState(plan.name);
+  const [price, setPrice] = useState(String(plan.price));
+  const [durationDays, setDurationDays] = useState(String(plan.durationDays));
+  const [maxActive, setMaxActive] = useState(String(plan.maxActive));
+
+  useEffect(() => {
+    setName(plan.name);
+    setPrice(String(plan.price));
+    setDurationDays(String(plan.durationDays));
+    setMaxActive(String(plan.maxActive));
+  }, [plan]);
+
+  return (
+    <form
+      className="flex flex-col gap-2 rounded-xl bg-navy px-3 py-3"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        await api(`/api/plans/${plan.id}`, {
+          method: "POST",
+          body: {
+            name,
+            price: Number(price.replace(",", ".")),
+            durationDays: Number(durationDays),
+            maxActive: Number(maxActive),
+          },
+        });
+        await onSaved();
+      }}
+    >
+      <input className={inputClass} value={name} onChange={(event) => setName(event.target.value)} />
+      <div className="grid grid-cols-3 gap-2">
+        <input className={inputClass} value={price} onChange={(event) => setPrice(event.target.value)} />
+        <input
+          className={inputClass}
+          value={durationDays}
+          onChange={(event) => setDurationDays(event.target.value)}
+        />
+        <input className={inputClass} value={maxActive} onChange={(event) => setMaxActive(event.target.value)} />
+      </div>
+      <div className="flex gap-2">
+        <Button type="submit" className="flex-1 min-h-9 text-sm">
+          Сохранить
+        </Button>
+        <Button
+          variant="danger"
+          className="min-h-9 px-3 text-sm"
+          onClick={async () => {
+            await api(`/api/plans/${plan.id}`, { method: "DELETE" });
+            await onSaved();
+          }}
+        >
+          Удалить
+        </Button>
+      </div>
     </form>
   );
 }

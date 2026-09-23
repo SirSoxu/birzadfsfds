@@ -2,15 +2,17 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, Field, inputClass } from "../components/ui";
 import { api } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import type { Section } from "../types";
 
 export function CreatePage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [sections, setSections] = useState<Section[]>([]);
   const [sectionId, setSectionId] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [price, setPrice] = useState("3000");
+  const [price, setPrice] = useState("30");
   const [unit, setUnit] = useState("за услугу");
   const [error, setError] = useState("");
 
@@ -40,8 +42,17 @@ export function CreatePage() {
       <div>
         <h1 className="text-2xl font-semibold">Новая услуга</h1>
         <p className="mt-1 text-sm text-mute">
-          Объявление не появится на витрине сразу. Сначала его проверит модератор.
+          Объявление сначала проверит модератор. Выложить на витрину можно только со статусом продавца.
         </p>
+        {user?.role === "user" && (!user.plan || user.plan.expired) ? (
+          <p className="mt-2 text-sm text-warn">
+            Сейчас статуса нет. Можно отправить на проверку, но публикация откроется после{" "}
+            <button type="button" className="text-signal" onClick={() => navigate("/plans")}>
+              покупки статуса
+            </button>
+            .
+          </p>
+        ) : null}
       </div>
       <Field label="Раздел">
         <select className={inputClass} value={sectionId} onChange={(event) => setSectionId(event.target.value)}>
@@ -63,7 +74,7 @@ export function CreatePage() {
         />
       </Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Цена, ₽">
+        <Field label="Цена, $">
           <input className={inputClass} inputMode="numeric" value={price} onChange={(event) => setPrice(event.target.value)} />
         </Field>
         <Field label="Единица">

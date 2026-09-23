@@ -3,10 +3,10 @@ import { useEffect, useState } from "react";
 import { HomeHeader } from "../components/HomeHeader";
 import { PromoBanner } from "../components/PromoBanner";
 import { SectionGlyph } from "../components/SectionGlyph";
-import { Button } from "../components/ui";
+import { Button, StatusBadge } from "../components/ui";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { formatMoney } from "../lib/format";
+import { formatMoney, formatRating } from "../lib/format";
 import type { Offer, Section, Settings } from "../types";
 
 export function HomePage() {
@@ -77,14 +77,21 @@ export function SearchCard({ offer }: { offer: Offer }) {
       className="rounded-2xl bg-panel px-4 py-3 transition duration-150 hover:bg-panel-2"
     >
       <div className="flex items-start justify-between gap-3">
-        <p className="font-semibold leading-5">{offer.title}</p>
+        <div className="min-w-0">
+          <p className="font-semibold leading-5">{offer.title}</p>
+          {offer.status && offer.status !== "approved" ? (
+            <div className="mt-1">
+              <StatusBadge status={offer.status} />
+            </div>
+          ) : null}
+        </div>
         <p className="shrink-0 font-display text-lg font-semibold text-signal">
           {formatMoney(offer.price)}
         </p>
       </div>
       <div className="mt-2 flex items-center justify-between text-xs text-mute">
         <span>
-          @{offer.seller?.username || "seller"} · ★ {offer.seller?.rating?.toFixed(1) ?? "5.0"}
+          @{offer.seller?.username || "seller"} · ★ {formatRating(offer.seller)}
         </span>
         <span>
           {offer.likes ?? 0} ♥ · {offer.views ?? 0} просм.

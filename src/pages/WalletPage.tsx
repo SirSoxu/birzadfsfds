@@ -11,7 +11,7 @@ export function WalletPage() {
   const { user, settings, refresh } = useAuth();
   const [tab, setTab] = useState<"deposit" | "withdraw">("deposit");
   const [provider, setProvider] = useState<Provider>("cryptobot");
-  const [amount, setAmount] = useState("100");
+  const [amount, setAmount] = useState("10");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -27,9 +27,9 @@ export function WalletPage() {
 
   const hint = useMemo(() => {
     if (tab === "deposit") {
-      return `Минимальная сумма 100. Комиссия ${percent}%.`;
+      return `Минимальная сумма $1. Комиссия ${percent}%.`;
     }
-    return `Сумма спишется с баланса. Минимум 100 ₽. Комиссия ${percent}%.`;
+    return `Сумма спишется с баланса. Минимум $1. Комиссия ${percent}%.`;
   }, [percent, tab]);
 
   async function submit() {
@@ -145,7 +145,7 @@ export function WalletPage() {
         inputMode="numeric"
         value={amount}
         onChange={(event) => setAmount(event.target.value)}
-        placeholder="100"
+        placeholder="10"
       />
       <Button disabled={busy} onClick={submit}>
         {tab === "deposit" ? "Пополнить" : "Вывести средства"}

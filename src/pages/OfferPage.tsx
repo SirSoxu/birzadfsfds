@@ -3,16 +3,19 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Avatar, Button, StatusBadge, inputClass } from "../components/ui";
 import { api } from "../lib/api";
-import { formatDate, formatMoney } from "../lib/format";
+import { dealStatusLabel, formatDate, formatMoney, formatRating } from "../lib/format";
 import type { Offer } from "../types";
 import { Empty } from "./HomePage";
+import { useAuth } from "../lib/auth";
 
 export function OfferPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, refresh } = useAuth();
   const [offer, setOffer] = useState<Offer | null>(null);
   const [comment, setComment] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   async function load() {
     const payload = await api<{ offer: Offer }>(`/api/offers/${id}`);
@@ -26,6 +29,10 @@ export function OfferPage() {
   if (error) return <Empty text={error} />;
   if (!offer || !offer.seller) return <Empty text="Загружаем объявление…" />;
   const current = offer;
+  const staff = user?.role === "moderator" || user?.role === "owner";
+  const refundable = (offer.deals ?? []).filter(
+    (deal) => deal.status === "held" || deal.status === "completed" || deal.status === "paid",
+  );
 
   async function favorite() {
     const payload = await api<{ favorite: boolean; likes: number }>(`/api/offers/${current.id}/favorite`, {
@@ -40,6 +47,44 @@ export function OfferPage() {
       body: { sellerId: current.sellerId, offerId: current.id },
     });
     navigate(`/chats/${payload.chatId}`);
+  }
+
+  async function buy() {
+    setNotice("");
+    try {
+      await api(`/api/offers/${current.id}/buy`, { method: "POST" });
+      setNotice("Оплата на холде. Подтвердите сделку, когда продавец выполнит работу.");
+      await refresh();
+      await load();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Не удалось купить");
+    }
+  }
+
+  async function setVisibility(published: boolean) {
+    setNotice("");
+    try {
+      await api(`/api/offers/${current.id}/visibility`, {
+        method: "POST",
+        body: { published },
+      });
+      setNotice(published ? "Объявление снова на витрине." : "Объявление снято с публикации.");
+      await load();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Не удалось изменить видимость");
+    }
+  }
+
+  async function confirmDeal(dealId: string) {
+    setNotice("");
+    try {
+      await api(`/api/deals/${dealId}/confirm`, { method: "POST" });
+      setNotice("Сделка подтверждена. Можно оставить отзыв.");
+      await refresh();
+      await load();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Не удалось подтвердить");
+    }
   }
 
   async function sendComment() {
@@ -82,13 +127,32 @@ export function OfferPage() {
         <span className="min-w-0 flex-1 text-left">
           <span className="block font-semibold">@{offer.seller.username}</span>
           <span className="text-xs text-mute">
-            ★ {offer.seller.rating.toFixed(1)} · {offer.seller.deals} сделок
+            ★ {formatRating(offer.seller)} · {offer.seller.deals} сделок
           </span>
         </span>
         <Star className="size-4 text-price" />
       </Link>
+      {offer.myDeal?.status === "held" ? (
+        <div className="flex flex-col gap-2 rounded-2xl bg-panel p-3">
+          <p className="text-sm font-semibold">Сделка на холде · {formatMoney(offer.myDeal.amount)}</p>
+          <p className="text-xs text-mute">
+            Деньги уйдут продавцу только после вашего подтверждения.
+          </p>
+          <Button onClick={() => confirmDeal(offer.myDeal!.id)}>Подтвердить выполнение</Button>
+        </div>
+      ) : null}
       <div className="flex gap-2">
-        <Button className="flex-1" onClick={write} disabled={offer.status !== "approved"}>
+        {offer.canBuy ? (
+          <Button className="flex-1" onClick={buy}>
+            Купить
+          </Button>
+        ) : null}
+        <Button
+          className="flex-1"
+          variant={offer.canBuy ? "ghost" : "primary"}
+          onClick={write}
+          disabled={offer.status !== "approved"}
+        >
           Написать
         </Button>
         <button
@@ -102,6 +166,59 @@ export function OfferPage() {
           <Heart className="size-5" fill={offer.favorite ? "currentColor" : "none"} />
         </button>
       </div>
+      {offer.canUnpublish ? (
+        <Button variant="ghost" onClick={() => setVisibility(false)}>
+          Снять с публикации
+        </Button>
+      ) : null}
+      {offer.canPublish ? (
+        <div className="flex flex-col gap-2">
+          {offer.publishError ? (
+            <p className="text-sm text-warn">
+              {offer.publishError}{" "}
+              <Link to="/plans" className="text-signal">
+                Купить статус
+              </Link>
+            </p>
+          ) : null}
+          <Button onClick={() => setVisibility(true)} disabled={Boolean(offer.publishError)}>
+            Выложить объявление
+          </Button>
+        </div>
+      ) : null}
+      {notice ? <p className="text-sm text-mute">{notice}</p> : null}
+      {offer.canReview && offer.seller ? (
+        <Link to={`/user/${offer.seller.id}`} className="text-sm text-signal">
+          Оставить отзыв продавцу
+        </Link>
+      ) : null}
+      {staff ? (
+        <div className="flex flex-col gap-2 rounded-2xl bg-panel p-3">
+          <p className="text-sm font-semibold">Модерация</p>
+          <Button
+            variant="danger"
+            onClick={async () => {
+              await api(`/api/offers/${offer.id}`, { method: "DELETE" });
+              navigate("/");
+            }}
+          >
+            Удалить услугу
+          </Button>
+          {refundable.map((deal) => (
+            <Button
+              key={deal.id}
+              variant="ghost"
+              onClick={async () => {
+                await api(`/api/deals/${deal.id}/cancel`, { method: "POST" });
+                setNotice("Деньги возвращены покупателю.");
+                await load();
+              }}
+            >
+              Вернуть {formatMoney(deal.amount)} · {dealStatusLabel(deal.status)}
+            </Button>
+          ))}
+        </div>
+      ) : null}
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Комментарии</h2>
         {(offer.comments ?? []).map((item) => (

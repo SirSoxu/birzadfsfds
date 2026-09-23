@@ -41,7 +41,7 @@ export function OfferRow({ offer, seller }: { offer: Offer; seller?: User }) {
       <span className="min-w-0 flex-1">
         <span className="block font-semibold leading-5 text-ice">{offer.title}</span>
         <span className="mt-1 block truncate text-xs text-mute">
-          {seller?.name ?? "Продавец"} · {seller?.rating.toFixed(1)} · {seller?.deals} сделок
+          {seller?.name ?? "Продавец"} · ★ {seller?.reviewCount ? seller.rating?.toFixed(1) : "—"} · {seller?.deals} сделок
         </span>
       </span>
       <span className="shrink-0 text-right">

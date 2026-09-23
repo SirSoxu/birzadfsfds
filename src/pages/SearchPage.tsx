@@ -29,7 +29,7 @@ export function SearchPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold">Поиск</h1>
+      <h1 className="text-2xl font-semibold">{mine ? "Мои объявления" : "Поиск"}</h1>
       <input
         value={query}
         onChange={(event) => {
